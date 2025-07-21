@@ -32,3 +32,7 @@ public fun mint(treasury_cap: &mut TreasuryCap<STABLECOIN>, amount: u64, to: add
 public fun burn(treasury_cap: &mut TreasuryCap<STABLECOIN>, coin: Coin<STABLECOIN>) {
     treasury_cap.burn(coin);
 }
+
+public fun transfer_treasury_cap(treasury_cap: TreasuryCap<STABLECOIN>, new_owner: address) {
+    sui::transfer::public_transfer(treasury_cap, new_owner);
+}
