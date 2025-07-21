@@ -1,0 +1,2 @@
+module stablecoin::engine;
+
