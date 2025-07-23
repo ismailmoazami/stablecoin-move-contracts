@@ -65,3 +65,11 @@ dependencies = [
 compiler-version = "1.51.4"
 edition = "2024.beta"
 flavor = "sui"
+
+[env]
+
+[env.testnet-tatum]
+chain-id = "4c78adac"
+original-published-id = "0xce4f30f7b744f03f94043aeba217b9977b88a0ee2c60d1123615373c12842b78"
+latest-published-id = "0xce4f30f7b744f03f94043aeba217b9977b88a0ee2c60d1123615373c12842b78"
+published-version = "1"
