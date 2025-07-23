@@ -1,12 +1,13 @@
 module stablecoin::engine;
 
-use stablecoin::stablecoin;
+// use stablecoin::stablecoin; // Commented out as it's not currently used
 use sui::coin::{Coin};
 use sui::sui::{SUI};
 use sui::table::{Self, Table};
 use sui::event; 
+use stablecoin::price_feed;
 
-// Types
+// Types    
 public struct Engine has key {
     id: UID,
     deposits: Table<address, Coin<SUI>>,
@@ -50,4 +51,4 @@ public fun deposit_collateral(engine: &mut Engine, coin: Coin<SUI>, ctx: &mut Tx
 
 // public fun mint(engine: &mut Engine, amount: u64, ctx: &mut TxContext) {
 
-// }
+// } 
