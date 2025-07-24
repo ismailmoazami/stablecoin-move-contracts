@@ -72,6 +72,10 @@ public fun deposit_collateral(engine: &mut Engine, coin: Coin<SUI>, ctx: &mut Tx
 }
 
 public fun mint(minter: &mut Minter, engine: &mut Engine, clock: &Clock, price_info_object: &PriceInfoObject, amount: u64, ctx: &mut TxContext) {
+    if(!engine.minted_amounts.contains(ctx.sender())) {
+        engine.minted_amounts.add(ctx.sender(), 0);
+    };
+    
     let minted_amounts_by_user = engine.minted_amounts.borrow_mut(ctx.sender());
     *minted_amounts_by_user = *minted_amounts_by_user + amount;
     
@@ -82,7 +86,13 @@ public fun mint(minter: &mut Minter, engine: &mut Engine, clock: &Clock, price_i
 
 fun get_collateral_value(clock: &Clock, price_info_object: &PriceInfoObject, amount: u64): u64 {
     let (price_i64, decimals_i64) = price_feed::get_sui_price(clock, price_info_object);
-    let decimals = decimals_i64.get_magnitude_if_negative(); 
+    
+    let decimals = if (decimals_i64.get_is_negative()) {
+        decimals_i64.get_magnitude_if_negative()
+    } else {
+        decimals_i64.get_magnitude_if_positive()
+    };
+    
     let price = price_i64.get_magnitude_if_positive();
 
     let value = amount * price;
