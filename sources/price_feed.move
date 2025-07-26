@@ -1,32 +1,29 @@
 module stablecoin::price_feed; 
 
-use pyth::{price, pyth, price_identifier, price_info};
-use pyth::i64::I64;
-use pyth::price_info::{PriceInfoObject};
-use sui::clock::{Clock};
+use stork::state::StorkState;
+use stork::stork::get_temporal_numeric_value_unchecked;
 use std::debug;
 
-const E_INVALID_ID: u64 = 0;
+// SUI/USD feed ID from Stork - using the correct byte array format
+const SUI_USD_FEED_ID: vector<u8> = b"0xa24cc95a4f3d70a0a2f7ac652b67a4a73791631ff06b4ee7f729097311169b81"
 
 public fun get_sui_price(
-        clock: &Clock,
-        price_info_object: &PriceInfoObject,
-    ):  (I64, I64) {
-        let max_age = 60;
+        feed_id: vector<u8>,
+        stork_state: &StorkState
+    ):  (u64, bool) {
+        let price = get_temporal_numeric_value_unchecked(stork_state, feed_id);
+        let i128value = price.get_quantized_value(); 
 
-        let price_struct = pyth::get_price_no_older_than(price_info_object,clock, max_age);
+        let magnitude = i128value.get_magnitude();
+        let negative = i128value.is_negative();
 
-        let price_info = price_info::get_price_info_from_price_info_object(price_info_object);
-        let price_id = price_identifier::get_bytes(&price_info::get_price_identifier(&price_info));
+        debug::print(&magnitude);
+        debug::print(&negative);
 
-        let testnet_sui_price_id = x"50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266";
-        assert!(price_id == testnet_sui_price_id, E_INVALID_ID);
+        (magnitude as u64, negative)
+} 
 
-        let decimal_i64 = price::get_expo(&price_struct);
-        let price_i64 = price::get_price(&price_struct);
-        
-        debug::print(&decimal_i64);
-        debug::print(&price_i64);
-
-        (decimal_i64, price_i64)
-}
+// Helper function to get SUI price using the default feed ID
+public fun get_sui_price_default(stork_state: &StorkState): (u64, bool) {
+    get_sui_price(SUI_USD_FEED_ID, stork_state)
+} 

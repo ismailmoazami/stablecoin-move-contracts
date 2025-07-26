@@ -5,11 +5,10 @@ use sui::coin::{Coin};
 use sui::sui::{SUI};
 use sui::table::{Self, Table};
 use sui::event; 
-use pyth::price_info::{PriceInfoObject};
-use sui::clock::{Clock};
 use std::u64::pow;
 use sui::coin::{TreasuryCap};
 use stablecoin::price_feed;
+use stork::state::StorkState;
 
 // Types    
 public struct Engine has key {
@@ -71,7 +70,7 @@ public fun deposit_collateral(engine: &mut Engine, coin: Coin<SUI>, ctx: &mut Tx
 
 }
 
-public fun mint(minter: &mut Minter, engine: &mut Engine, clock: &Clock, price_info_object: &PriceInfoObject, amount: u64, ctx: &mut TxContext) {
+public fun mint(minter: &mut Minter, engine: &mut Engine, feed_id: vector<u8>, stork_state: &StorkState, amount: u64, ctx: &mut TxContext) {
     if(!engine.minted_amounts.contains(ctx.sender())) {
         engine.minted_amounts.add(ctx.sender(), 0);
     };
@@ -79,24 +78,15 @@ public fun mint(minter: &mut Minter, engine: &mut Engine, clock: &Clock, price_i
     let minted_amounts_by_user = engine.minted_amounts.borrow_mut(ctx.sender());
     *minted_amounts_by_user = *minted_amounts_by_user + amount;
     
-    let health_factor = get_user_health_factor(engine, clock, ctx, price_info_object);
+    let health_factor = get_user_health_factor(engine, feed_id, stork_state, ctx);
     assert!(health_factor > MIN_HEALTH_FACTOR, EHealthFactorTooLow);
     stablecoin::mint(&mut minter.treasury, amount, ctx.sender(), ctx);
 } 
 
-fun get_collateral_value(clock: &Clock, price_info_object: &PriceInfoObject, amount: u64): u64 {
-    let (price_i64, decimals_i64) = price_feed::get_sui_price(clock, price_info_object);
-    
-    let decimals = if (decimals_i64.get_is_negative()) {
-        decimals_i64.get_magnitude_if_negative()
-    } else {
-        decimals_i64.get_magnitude_if_positive()
-    };
-    
-    let price = price_i64.get_magnitude_if_positive();
-
+fun get_collateral_value(feed_id: vector<u8>, stork_state: &StorkState, amount: u64): u64 {
+    let (price, _) = price_feed::get_sui_price(feed_id, stork_state);
     let value = amount * price;
-    value / pow(10, decimals as u8)
+    value / pow(10, 9 as u8)
 }
 
 fun get_user_collateral_amount(engine: &Engine, address: address): u64 {
@@ -109,10 +99,10 @@ fun get_user_minted_amount(engine: &Engine, address: address): u64 {
     *amount 
 }
 
-fun get_user_health_factor(engine: &Engine, clock: &Clock, ctx: &TxContext, price_info_object: &PriceInfoObject): u64 {
+fun get_user_health_factor(engine: &Engine, feed_id: vector<u8>, stork_state: &StorkState, ctx: &TxContext): u64 {
     let total_minted = get_user_minted_amount(engine, ctx.sender());
     let total_collateral_amount = get_user_collateral_amount(engine, ctx.sender());
-    let total_collateral_value = get_collateral_value(clock, price_info_object, total_collateral_amount);
+    let total_collateral_value = get_collateral_value(feed_id, stork_state, total_collateral_amount);
 
     let collateral_adjusted_value = total_collateral_value * THRESHOLD_PRECISION / LIQUIDATION_THRESHOLD;
     collateral_adjusted_value / total_minted    
