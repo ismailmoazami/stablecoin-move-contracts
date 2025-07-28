@@ -5,9 +5,8 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 # authors = ["..."]      # e.g., ["Joe Smith (joesmith@noemail.com)", "John Snow (johnsnow@noemail.com)"]
 
 [dependencies]
-stork = { git = "https://github.com/stork-oracle/stork-external.git", subdir = "contracts/sui/contracts", rev = "main" }
-
-
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "main" }
+SupraOracle = { git = "https://github.com/Entropy-Foundation/dora-interface", subdir = "sui/testnet/supra_holder", rev = "testnet" }
 
 [addresses]
 stablecoin = "0x0"
@@ -22,14 +21,6 @@ stablecoin = "0x0"
 # Local = { local = "../path/to/dev-build" }
 
 [dev-addresses]
-# The dev-addresses section allows overwriting named addresses for the `--test`
-# and `--dev` modes.
+# The dev-addresses section allows overwriting named addresses for the `--test` and
+# `--dev` modes.
 # alice = "0xB0B"
-
-
- 
-# Pyth is locked into this specific `rev` because the package depends on Wormhole and is pinned to this version.
-# [dependencies.Sui]
-# git = "https://github.com/MystenLabs/sui.git"
-# subdir = "crates/sui-framework/packages/sui-framework"
-# rev = "041c5f2bae2fe52079e44b70514333532d69f4e6"

@@ -1,29 +1,52 @@
 module stablecoin::price_feed; 
 
-use stork::state::StorkState;
-use stork::stork::get_temporal_numeric_value_unchecked;
+use SupraOracle::SupraSValueFeed::{Self, OracleHolder};
 use std::debug;
+use sui::vec_map::{Self, VecMap};
 
-// SUI/USD feed ID from Stork - using the correct byte array format
-const SUI_USD_FEED_ID: vector<u8> = b"0xa24cc95a4f3d70a0a2f7ac652b67a4a73791631ff06b4ee7f729097311169b81"
+public struct PriceFeedHolder has key, store {
+    id: UID,
+    feeds: VecMap<u32, PriceEntry>,
+}
+
+public struct PriceEntry has store, copy, drop {
+    value: u128,
+    decimal: u16,
+    timestamp: u128,
+    round: u64,
+}  
+
+fun update_price(resource: &mut PriceFeedHolder, pair: u32, value: u128, decimal: u16, timestamp: u128, round: u64) {
+    let feeds = resource.feeds;
+    if (vec_map::contains(&feeds, &pair)) {
+        let feed = vec_map::get_mut(&mut resource.feeds, &pair);
+        feed.value = value;
+        feed.decimal = decimal;
+        feed.timestamp = timestamp;
+        feed.round = round;
+    } else {
+        let entry = PriceEntry { value, decimal, timestamp, round };
+        vec_map::insert(&mut resource.feeds, pair, entry);
+    };
+}
 
 public fun get_sui_price(
-        feed_id: vector<u8>,
-        stork_state: &StorkState
-    ):  (u64, bool) {
-        let price = get_temporal_numeric_value_unchecked(stork_state, feed_id);
-        let i128value = price.get_quantized_value(); 
+    oracle_holder: &OracleHolder,
+    resource: &mut PriceFeedHolder,
+    pair: u32,
+    ctx: &mut TxContext
+) {
+    let (value, decimal, price, round) = SupraSValueFeed::get_price(oracle_holder, pair);
+    debug::print(&value);
+    update_price(resource, pair, value, decimal, price, round);
+}
 
-        let magnitude = i128value.get_magnitude();
-        let negative = i128value.is_negative();
+public fun get_sui_price_default(
+    oracle_holder: &OracleHolder,
+    resource: &mut PriceFeedHolder,
+    ctx: &mut TxContext
+) {
+    let sui_usd_pair_id = 90;
+    get_sui_price(oracle_holder, resource, sui_usd_pair_id, ctx); // SUI/USD pair ID
+}
 
-        debug::print(&magnitude);
-        debug::print(&negative);
-
-        (magnitude as u64, negative)
-} 
-
-// Helper function to get SUI price using the default feed ID
-public fun get_sui_price_default(stork_state: &StorkState): (u64, bool) {
-    get_sui_price(SUI_USD_FEED_ID, stork_state)
-} 
