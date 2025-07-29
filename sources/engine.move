@@ -28,9 +28,20 @@ public struct CollateralDeposited has copy, drop {
     amount: u64
 }
 
+public struct Minted has copy, drop {
+    sender: address,
+    amount: u64
+}
+
+public struct Burned has copy, drop {
+    sender: address,
+    amount: u64
+}
+
 // Errors
 const EZeroAmount: u64 = 0;
 const EHealthFactorTooLow: u64 = 1;
+const ENoMintedAmount: u64 = 2;
 
 // Constants 
 const LIQUIDATION_THRESHOLD: u64 = 50; // 50%
@@ -80,12 +91,38 @@ public fun mint(oracle_holder: &OracleHolder, minter: &mut Minter, engine: &mut 
     
     let health_factor = get_user_health_factor(oracle_holder, engine, ctx);
     assert!(health_factor > MIN_HEALTH_FACTOR, EHealthFactorTooLow);
+    
+    event::emit(Minted{
+        sender: ctx.sender(),
+        amount: amount
+    });
+    
     stablecoin::mint(&mut minter.treasury, amount, ctx.sender(), ctx);
 } 
 
+public fun burn(engine: &mut Engine, minter: &mut Minter, oracle_holder: &OracleHolder, coin: Coin<stablecoin::STABLECOIN>, ctx: &mut TxContext) {
+    let minted_amounts_by_user = engine.minted_amounts.borrow_mut(ctx.sender());
+    let amount = coin.value();
+    assert!(*minted_amounts_by_user > 0, ENoMintedAmount);
+    assert!(*minted_amounts_by_user >= amount, ENoMintedAmount);
+    *minted_amounts_by_user = *minted_amounts_by_user - amount; 
+
+    stablecoin::burn(&mut minter.treasury, coin);
+
+    let health_factor = get_user_health_factor(oracle_holder, engine, ctx);
+    assert!(health_factor > MIN_HEALTH_FACTOR, EHealthFactorTooLow);
+
+    event::emit(Burned{
+        sender: ctx.sender(),
+        amount: amount
+    });
+}
+
 fun get_collateral_value(oracle_holder: &OracleHolder, amount: u64): u64 {
     let (sui_price, decimal) = price_feed::get_sui_price_default(oracle_holder);
-    let value = amount * (sui_price as u64);
+    
+    let price_u64 = (sui_price as u64);
+    let value = amount * price_u64;
     value / pow(10, decimal as u8)
 }
 
@@ -101,6 +138,9 @@ fun get_user_minted_amount(engine: &Engine, address: address): u64 {
 
 fun get_user_health_factor(oracle_holder: &OracleHolder, engine: &Engine, ctx: &TxContext): u64 {
     let total_minted = get_user_minted_amount(engine, ctx.sender());
+    // Prevent division by zero
+    assert!(total_minted > 0, ENoMintedAmount);
+      
     let total_collateral_amount = get_user_collateral_amount(engine, ctx.sender());
     let total_collateral_value = get_collateral_value(oracle_holder, total_collateral_amount);
     
