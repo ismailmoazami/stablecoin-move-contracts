@@ -56,6 +56,6 @@ flavor = "sui"
 
 [env.testnet-tatum]
 chain-id = "4c78adac"
-original-published-id = "0x885b128bc8196f8ad0e22d3e00b96abd98ce5a4833370acf906ebb6238cfa83e"
-latest-published-id = "0x885b128bc8196f8ad0e22d3e00b96abd98ce5a4833370acf906ebb6238cfa83e"
+original-published-id = "0xa9d8b3d4b9b29021b719844f22820c29686bba28a6fe1fffe8e660c9da3587e2"
+latest-published-id = "0xa9d8b3d4b9b29021b719844f22820c29686bba28a6fe1fffe8e660c9da3587e2"
 published-version = "1"

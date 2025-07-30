@@ -62,6 +62,7 @@ const LIQUIDATION_THRESHOLD: u64 = 50; // 50%
 const THRESHOLD_PRECISION: u64 = 100; // 100%
 const MIN_HEALTH_FACTOR: u64 = 1000000000;
 const LIQUIDIATION_BONUS: u64 = 10;
+const PERCICION: u64 = 1000000000;
 
 // Functions
 fun init(ctx: &mut TxContext) {
@@ -165,8 +166,8 @@ public fun liquidate(engine: &mut Engine, minter: &mut Minter, oracle_holder: &O
     assert!(starting_health_factor < MIN_HEALTH_FACTOR, EHealthFactorOk);
     let debt_amount = coin.value();
     let token_amount_from_collateral = get_token_amount_from_usd(oracle_holder, debt_amount);
-    let bonus_collateral = (token_amount_from_collateral * LIQUIDIATION_BONUS) / THRESHOLD_PRECISION;
-    let total_collateral_amount = debt_amount + bonus_collateral;
+    let bonus_collateral = ((token_amount_from_collateral as u128) * (LIQUIDIATION_BONUS as u128)) / (THRESHOLD_PRECISION as u128);
+    let total_collateral_amount = debt_amount + (bonus_collateral as u64);
     
     withdraw_user_collateral(engine, oracle_holder, total_collateral_amount, user, ctx.sender(), ctx);
     burn_stablecoin(engine, minter, oracle_holder, coin, user, ctx);
@@ -186,9 +187,10 @@ public fun liquidate(engine: &mut Engine, minter: &mut Minter, oracle_holder: &O
 fun get_collateral_value(oracle_holder: &OracleHolder, amount: u64): u64 {
     let (sui_price, decimal) = price_feed::get_sui_price_default(oracle_holder);
     
-    let price_u64 = (sui_price as u64);
-    let value = amount * price_u64;
-    value / pow(10, decimal as u8)
+    // Handle the u128 price properly to avoid overflow
+    let value = (amount as u128) * sui_price;
+    let result = value / (pow(10, decimal as u8) as u128);
+    (result as u64)
 }
 
 fun get_user_collateral_amount(engine: &Engine, address: address): u64 {
@@ -201,7 +203,6 @@ fun get_user_minted_amount(engine: &Engine, address: address): u64 {
     *amount 
 }
 
-
 fun get_user_health_factor(oracle_holder: &OracleHolder, engine: &Engine, user: address): u64 {
     let total_minted = get_user_minted_amount(engine, user);
     // Prevent division by zero
@@ -210,14 +211,14 @@ fun get_user_health_factor(oracle_holder: &OracleHolder, engine: &Engine, user: 
     let total_collateral_amount = get_user_collateral_amount(engine, user);
     let total_collateral_value = get_collateral_value(oracle_holder, total_collateral_amount);
     
-    let collateral_adjusted_value = total_collateral_value * THRESHOLD_PRECISION / LIQUIDATION_THRESHOLD;
-    collateral_adjusted_value / total_minted    
+    let collateral_adjusted_value = total_collateral_value * LIQUIDATION_THRESHOLD / THRESHOLD_PRECISION;
+    (collateral_adjusted_value * PERCICION) / total_minted   
 }
 
 fun get_token_amount_from_usd(oracle_holder: &OracleHolder, usd_amount: u64): u64 {
     let (sui_price, decimal) = price_feed::get_sui_price_default(oracle_holder);
     
-    let usd_amount_scaled = usd_amount * pow(10, decimal as u8);
-    let sui_tokens_18_decimals = usd_amount_scaled / (sui_price as u64);
-    sui_tokens_18_decimals / pow(10, 9)
+    let usd_amount_scaled = (usd_amount as u128) * (pow(10, decimal as u8) as u128);
+    let sui_tokens_18_decimals = usd_amount_scaled / sui_price;
+    (sui_tokens_18_decimals / (pow(10, 9) as u128)) as u64
 }
